@@ -33,3 +33,6 @@ _start:
 .hang:
     hlt
     jmp .hang
+
+; Mark the stack as non-executable for the linker.
+section .note.GNU-stack noalloc noexec nowrite progbits

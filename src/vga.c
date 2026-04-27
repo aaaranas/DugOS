@@ -74,3 +74,30 @@ void vga_writeln(const char *s)
     vga_write(s);
     vga_putchar('\n');
 }
+
+void vga_write_dec(uint32_t n)
+{
+    char buf[11];
+    int  i = 0;
+
+    if (n == 0) { vga_putchar('0'); return; }
+
+    while (n > 0) {
+        buf[i++] = (char) ('0' + (n % 10));
+        n /= 10;
+    }
+    while (i > 0) vga_putchar(buf[--i]);
+}
+
+void vga_write_hex(uint32_t n)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    int started = 0;
+    for (int shift = 28; shift >= 0; shift -= 4) {
+        char c = hex[(n >> shift) & 0xF];
+        if (c != '0' || started || shift == 0) {
+            vga_putchar(c);
+            started = 1;
+        }
+    }
+}

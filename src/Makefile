@@ -9,8 +9,8 @@ CFLAGS  := -m32 -ffreestanding -nostdlib -fno-pie -fno-stack-protector \
            -fno-asynchronous-unwind-tables -Wall -Wextra -std=gnu99
 LDFLAGS := -m elf_i386 -T linker.ld -nostdlib
 
-C_SRCS   := main.c vga.c
-ASM_SRCS := boot.s
+C_SRCS   := main.c vga.c gdt.c idt.c isr.c
+ASM_SRCS := boot.s isr_stubs.s
 OBJS     := $(ASM_SRCS:.s=.o) $(C_SRCS:.c=.o)
 
 KERNEL := dugos.elf
@@ -24,11 +24,18 @@ all: $(KERNEL)
 $(KERNEL): $(OBJS) linker.ld
 	$(LD) $(LDFLAGS) -o $@ $(OBJS)
 
-%.o: %.c vga.h
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 %.o: %.s
 	$(ASM) -f elf32 $< -o $@
+
+# Per-object header dependencies
+main.o: vga.h gdt.h idt.h
+vga.o:  vga.h
+gdt.o:  gdt.h
+idt.o:  idt.h
+isr.o:  isr.h vga.h
 
 iso: $(KERNEL) grub.cfg
 	rm -rf $(ISODIR)

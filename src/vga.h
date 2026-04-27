@@ -17,5 +17,7 @@ void vga_set_color(uint8_t fg, uint8_t bg);
 void vga_putchar(char c);
 void vga_write(const char *s);
 void vga_writeln(const char *s);
+void vga_write_dec(uint32_t n);
+void vga_write_hex(uint32_t n);
 
 #endif

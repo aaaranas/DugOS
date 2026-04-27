@@ -6,6 +6,8 @@
  */
 
 #include "vga.h"
+#include "gdt.h"
+#include "idt.h"
 
 static void welcome(void);
 
@@ -20,11 +22,21 @@ static void welcome(void);
 void kmain(void)
 {
     vga_init();
-
-    /* Phase A -- welcome only. */
     welcome();
 
-    /* Phase B+ -- uncomment as each is implemented:
+    /* Phase B.1 -- protected-mode tables. */
+    gdt_init();
+    vga_set_color(VGA_LIGHT_GREEN, VGA_BLACK);
+    vga_writeln("  >> GDT loaded (5 entries)");
+
+    idt_init();
+    vga_writeln("  >> IDT loaded (256 entries, 32 exception handlers)");
+
+    /* To prove the IDT works, uncomment the next line -- it raises
+     * a breakpoint exception (vector 3) and triggers isr_common_handler. */
+    /* __asm__ __volatile__ ("int $3"); */
+
+    /* Phase B.2+ -- uncomment as each is implemented:
      *
      *   intr_init(1);
      *   boot_proc_table();
@@ -32,6 +44,10 @@ void kmain(void)
      *   boot_image_init();
      *   announce();
      */
+
+    vga_writeln("");
+    vga_set_color(VGA_WHITE, VGA_BLACK);
+    vga_writeln("  >> DugOS booted. CPU halted until Phase B implements input.");
 
     /* Hard requirement #2: infinite loop until shutdown. */
     for (;;) {
@@ -61,7 +77,4 @@ static void welcome(void)
     vga_writeln("  |              [ Booted into 32-bit protected mode ]              |");
     vga_writeln("  |                                                                 |");
     vga_writeln("  +=================================================================+");
-    vga_writeln("");
-    vga_set_color(VGA_WHITE, VGA_BLACK);
-    vga_writeln("  >> DugOS booted. CPU halted until Phase B implements input.");
 }
