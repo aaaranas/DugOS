@@ -1,0 +1,67 @@
+/* DugOS -- kernel entry point.
+ *
+ * Mirrors MINIX 3 kernel/main.c (Appendix B, line 07100).
+ * Phase A: only vga_init + welcome + idle loop are live.
+ * Later phases will uncomment intr_init, the boot tables, etc.
+ */
+
+#include "vga.h"
+
+static void welcome(void);
+
+/* ---- Stubs to be uncommented in later phases ----------------
+ * static void intr_init(int minit);
+ * static void boot_proc_table(void);
+ * static void boot_priv_table(void);
+ * static void boot_image_init(void);
+ * static void announce(void);
+ * -------------------------------------------------------------- */
+
+void kmain(void)
+{
+    vga_init();
+
+    /* Phase A -- welcome only. */
+    welcome();
+
+    /* Phase B+ -- uncomment as each is implemented:
+     *
+     *   intr_init(1);
+     *   boot_proc_table();
+     *   boot_priv_table();
+     *   boot_image_init();
+     *   announce();
+     */
+
+    /* Hard requirement #2: infinite loop until shutdown. */
+    for (;;) {
+        __asm__ __volatile__ ("hlt");
+    }
+}
+
+static void welcome(void)
+{
+    vga_set_color(VGA_YELLOW, VGA_BLACK);
+    vga_writeln("");
+    vga_writeln("  +=================================================================+");
+    vga_writeln("  |                                                                 |");
+    vga_writeln("  |    ____  _   _   ____   ___   ____                              |");
+    vga_writeln("  |   |  _ \\| | | | / ___| / _ \\ / ___|                             |");
+    vga_writeln("  |   | | | | | | || |  _ | | | |\\___ \\                             |");
+    vga_writeln("  |   | |_| | |_| || |_| || |_| | ___) |                            |");
+    vga_writeln("  |   |____/ \\___/  \\____| \\___/ |____/                             |");
+    vga_writeln("  |                                                                 |");
+    vga_writeln("  |          O P E R A T I N G     S Y S T E M                     |");
+    vga_writeln("  |                      v e r s i o n  1.0                         |");
+    vga_writeln("  |                                                                 |");
+    vga_writeln("  |   - - - - - - - - - - - - - - - - - - - - - - - - - - - - -    |");
+    vga_writeln("  |       Built on MINIX 3.1.0 kernel  (Appendix B, line 07100)     |");
+    vga_writeln("  |   - - - - - - - - - - - - - - - - - - - - - - - - - - - - -    |");
+    vga_writeln("  |                                                                 |");
+    vga_writeln("  |              [ Booted into 32-bit protected mode ]              |");
+    vga_writeln("  |                                                                 |");
+    vga_writeln("  +=================================================================+");
+    vga_writeln("");
+    vga_set_color(VGA_WHITE, VGA_BLACK);
+    vga_writeln("  >> DugOS booted. CPU halted until Phase B implements input.");
+}
