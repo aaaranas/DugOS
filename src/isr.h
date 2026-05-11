@@ -87,4 +87,27 @@ struct regs {
  */
 void isr_common_handler(struct regs *r);
 
+/* =============================================================================
+ * IRQ dispatcher interface (Phase B.2)
+ *
+ * irq_register() -- register a C function as the handler for one IRQ line
+ *
+ * Parameters:
+ *   irq     -- hardware IRQ number (0-15). IRQ1 = keyboard, IRQ0 = timer.
+ *   handler -- pointer to a void function(void) that services the IRQ.
+ *              Called from irq_dispatch() with interrupts disabled.
+ *              The handler must NOT send EOI -- irq_dispatch does that.
+ *
+ * irq_dispatch() -- called from the NASM IRQ stubs in isr_stubs.s
+ *
+ * Parameter:
+ *   irq -- hardware IRQ number (0-15) passed from the NASM stub
+ *
+ * Calls the registered handler (if any) and sends End-Of-Interrupt to the
+ * 8259A PIC. This is the central dispatch point for all hardware interrupts.
+ * =============================================================================
+ */
+void irq_register(uint8_t irq, void (*handler)(void));
+void irq_dispatch(uint32_t irq);
+
 #endif /* DUGOS_ISR_H */

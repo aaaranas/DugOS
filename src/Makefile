@@ -9,8 +9,14 @@ CFLAGS  := -m32 -ffreestanding -nostdlib -fno-pie -fno-stack-protector \
            -fno-asynchronous-unwind-tables -Wall -Wextra -std=gnu99
 LDFLAGS := -m elf_i386 -T linker.ld -nostdlib
 
-C_SRCS   := main.c vga.c gdt.c idt.c isr.c
+# C source files -- add new modules here as each phase is implemented.
+C_SRCS   := main.c vga.c gdt.c idt.c isr.c \
+             pic.c keyboard.c string.c \
+             fs.c dir.c shell.c
+
+# Assembly source files -- boot entry and all ISR/IRQ stubs.
 ASM_SRCS := boot.s isr_stubs.s
+
 OBJS     := $(ASM_SRCS:.s=.o) $(C_SRCS:.c=.o)
 
 KERNEL := dugos.elf
@@ -30,12 +36,20 @@ $(KERNEL): $(OBJS) linker.ld
 %.o: %.s
 	$(ASM) -f elf32 $< -o $@
 
-# Per-object header dependencies
-main.o: vga.h gdt.h idt.h
-vga.o:  vga.h
-gdt.o:  gdt.h
-idt.o:  idt.h
-isr.o:  isr.h vga.h
+# Per-object header dependencies.
+# Each line lists the headers that the corresponding .c file #includes.
+# If a header changes, make will recompile only the affected objects.
+main.o:     vga.h gdt.h idt.h pic.h keyboard.h fs.h dir.h shell.h string.h
+vga.o:      vga.h
+gdt.o:      gdt.h
+idt.o:      idt.h
+isr.o:      isr.h vga.h pic.h
+pic.o:      pic.h port.h vga.h
+keyboard.o: keyboard.h isr.h pic.h port.h
+string.o:   string.h
+fs.o:       fs.h vga.h string.h keyboard.h
+dir.o:      dir.h fs.h string.h vga.h keyboard.h
+shell.o:    shell.h vga.h keyboard.h string.h fs.h dir.h pic.h port.h
 
 iso: $(KERNEL) grub.cfg
 	rm -rf $(ISODIR)

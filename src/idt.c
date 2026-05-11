@@ -88,6 +88,17 @@ extern void isr24(void); extern void isr25(void); extern void isr26(void);
 extern void isr27(void); extern void isr28(void); extern void isr29(void);
 extern void isr30(void); extern void isr31(void);
 
+/* IRQ stub functions for hardware interrupt lines 0-15 (Phase B.2).
+ * Each is a NASM stub in isr_stubs.s that saves registers and calls
+ * irq_dispatch(irq_nr) in isr.c, which calls the registered handler and
+ * sends End-Of-Interrupt to the PIC. Mapped to IDT vectors 32-47. */
+extern void irq0 (void); extern void irq1 (void); extern void irq2 (void);
+extern void irq3 (void); extern void irq4 (void); extern void irq5 (void);
+extern void irq6 (void); extern void irq7 (void); extern void irq8 (void);
+extern void irq9 (void); extern void irq10(void); extern void irq11(void);
+extern void irq12(void); extern void irq13(void); extern void irq14(void);
+extern void irq15(void);
+
 /* =============================================================================
  * idt_set() -- write one gate descriptor into the IDT array
  *
@@ -175,6 +186,28 @@ void idt_init(void)
     idt_set(29, (uint32_t) isr29, 0x08, 0x8E);  /* Reserved                    */
     idt_set(30, (uint32_t) isr30, 0x08, 0x8E);  /* Security exception          */
     idt_set(31, (uint32_t) isr31, 0x08, 0x8E);  /* Reserved                    */
+
+    /* Install IRQ handlers for hardware interrupt lines 0-15 (Phase B.2).
+     * These map to IDT vectors 32-47 (just above the 32 exception vectors).
+     * The 8259A PIC was remapped in pic_init() so that IRQ0 fires vector 32,
+     * IRQ1 fires vector 33, ... IRQ15 fires vector 47.
+     * Flags 0x8E = interrupt gate (auto-disables interrupts on entry). */
+    idt_set(32, (uint32_t) irq0,  0x08, 0x8E);  /* IRQ0  PIT timer          */
+    idt_set(33, (uint32_t) irq1,  0x08, 0x8E);  /* IRQ1  PS/2 keyboard      */
+    idt_set(34, (uint32_t) irq2,  0x08, 0x8E);  /* IRQ2  Cascade (slave PIC)*/
+    idt_set(35, (uint32_t) irq3,  0x08, 0x8E);  /* IRQ3  COM2               */
+    idt_set(36, (uint32_t) irq4,  0x08, 0x8E);  /* IRQ4  COM1               */
+    idt_set(37, (uint32_t) irq5,  0x08, 0x8E);  /* IRQ5  LPT2 / sound       */
+    idt_set(38, (uint32_t) irq6,  0x08, 0x8E);  /* IRQ6  Floppy disk        */
+    idt_set(39, (uint32_t) irq7,  0x08, 0x8E);  /* IRQ7  LPT1 / spurious    */
+    idt_set(40, (uint32_t) irq8,  0x08, 0x8E);  /* IRQ8  CMOS RTC           */
+    idt_set(41, (uint32_t) irq9,  0x08, 0x8E);  /* IRQ9  Free / ACPI        */
+    idt_set(42, (uint32_t) irq10, 0x08, 0x8E);  /* IRQ10 Free               */
+    idt_set(43, (uint32_t) irq11, 0x08, 0x8E);  /* IRQ11 Free               */
+    idt_set(44, (uint32_t) irq12, 0x08, 0x8E);  /* IRQ12 PS/2 mouse         */
+    idt_set(45, (uint32_t) irq13, 0x08, 0x8E);  /* IRQ13 FPU coprocessor    */
+    idt_set(46, (uint32_t) irq14, 0x08, 0x8E);  /* IRQ14 Primary ATA        */
+    idt_set(47, (uint32_t) irq15, 0x08, 0x8E);  /* IRQ15 Secondary ATA      */
 
     /* Load the IDT: call the assembly helper which executes the lidt
      * instruction, making the CPU aware of our new interrupt table. */

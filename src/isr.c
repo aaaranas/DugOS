@@ -27,6 +27,7 @@
 
 #include "isr.h"   /* struct regs, isr_common_handler declaration */
 #include "vga.h"   /* vga_write, vga_writeln, vga_set_color, etc. */
+#include "pic.h"   /* pic_eoi() -- send End-Of-Interrupt to PIC   */
 
 /* =============================================================================
  * exception_name() -- return a human-readable name for a CPU exception vector
@@ -113,4 +114,47 @@ void isr_common_handler(struct regs *r)
     /* Permanently halt: disable interrupts then halt in an infinite loop.
      * The loop ensures that even a Non-Maskable Interrupt cannot escape. */
     for (;;) __asm__ __volatile__ ("cli; hlt");
+}
+
+/* =============================================================================
+ * IRQ HANDLER DISPATCH TABLE AND REGISTRATION (Phase B.2)
+ *
+ * irq_handlers[] -- one function pointer per hardware IRQ line (0-15).
+ * Initialized to all-zero (NULL) by BSS zeroing at boot, meaning no handler
+ * is registered by default. Drivers call irq_register() to install themselves.
+ * =============================================================================
+ */
+static void (*irq_handlers[16])(void);
+
+/* =============================================================================
+ * irq_register() -- install a handler for one hardware IRQ line
+ *
+ * Parameters:
+ *   irq     -- IRQ number (0-15); out of range values are silently ignored.
+ *   handler -- function to call when that IRQ fires; NULL to unregister.
+ * =============================================================================
+ */
+void irq_register(uint8_t irq, void (*handler)(void))
+{
+    if (irq < 16) irq_handlers[irq] = handler;
+}
+
+/* =============================================================================
+ * irq_dispatch() -- called from NASM IRQ stubs; dispatches to handler + EOI
+ *
+ * Parameter:
+ *   irq -- hardware IRQ number (0-15) passed by the NASM stub in isr_stubs.s
+ *
+ * Calls the registered C handler (if any) and then sends End-Of-Interrupt to
+ * the 8259A PIC so the PIC is ready to deliver the next interrupt on that line.
+ * EOI is always sent, even if no handler is registered, to prevent the PIC
+ * from locking up the IRQ line permanently.
+ * =============================================================================
+ */
+void irq_dispatch(uint32_t irq)
+{
+    if (irq < 16 && irq_handlers[irq]) {
+        irq_handlers[irq]();  /* call the registered handler */
+    }
+    pic_eoi((uint8_t) irq);   /* always acknowledge the interrupt to the PIC */
 }

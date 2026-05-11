@@ -257,6 +257,90 @@ isr_common:
     iret
 
 ; =============================================================================
+; IRQ STUB MACRO AND STUBS (vectors 32-47) -- hardware interrupt handlers
+;
+; Hardware IRQs are different from CPU exceptions:
+;   - They are triggered by peripherals (timer, keyboard, disk, etc.)
+;   - They must NOT halt the CPU -- they must dispatch a handler and return.
+;   - After servicing, the handler MUST send EOI to the PIC (done in C).
+;
+; IRQ_STUB <irq_nr>:
+;   Saves all general-purpose and segment registers (in the same order as
+;   isr_common so the compiler knows the stack is consistent), loads the
+;   kernel data segment, calls irq_dispatch(irq_nr) in isr.c which looks
+;   up the registered handler, calls it, and sends EOI to the PIC.
+;   Registers are then restored and iret returns from the interrupt.
+;
+; WHY NOT REUSE isr_common:
+;   isr_common calls isr_common_handler() which always halts. IRQ handlers
+;   must return, so they need their own dispatch path. The register save/restore
+;   sequence is the same, but the C function called differs.
+;
+; COUPLING NOTE:
+;   irq_dispatch() is declared in isr.h and defined in isr.c.
+; =============================================================================
+
+extern irq_dispatch   ; C function in isr.c: dispatches to registered handler
+
+%macro IRQ_STUB 1
+global irq%1                ; make irqN visible so idt.c can take its address
+irq%1:
+    pusha               ; save all general-purpose registers (EAX...EDI)
+
+    ; Save segment registers individually (no bulk push for these).
+    push ds
+    push es
+    push fs
+    push gs
+
+    ; Load the kernel data segment into all data selectors.
+    ; This is required in case the interrupt fired while user-mode code was
+    ; running (future phase) where DS etc. would point to user segments.
+    mov ax, 0x10        ; kernel data segment selector (GDT entry 2)
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    ; Pass the IRQ number (0-15) to irq_dispatch().
+    ; irq_dispatch calls the registered C handler and sends PIC EOI.
+    push dword %1
+    call irq_dispatch
+    add  esp, 4         ; pop the irq number argument
+
+    ; Restore segment registers in reverse push order.
+    pop gs
+    pop fs
+    pop es
+    pop ds
+
+    ; Restore all general-purpose registers (reverse of pusha).
+    popa
+
+    ; Return from interrupt: pops EIP, CS, EFLAGS (and SS, ESP on priv change).
+    iret
+%endmacro
+
+; Instantiate IRQ stubs for all 16 hardware IRQ lines (0-15).
+; Each maps to an IDT vector that is 32 higher: IRQ0 -> vector 32, etc.
+IRQ_STUB 0    ; IRQ0  PIT timer tick        (vector 32)
+IRQ_STUB 1    ; IRQ1  PS/2 keyboard         (vector 33)
+IRQ_STUB 2    ; IRQ2  Cascade to slave PIC  (vector 34) -- not a real device
+IRQ_STUB 3    ; IRQ3  COM2 serial port      (vector 35)
+IRQ_STUB 4    ; IRQ4  COM1 serial port      (vector 36)
+IRQ_STUB 5    ; IRQ5  LPT2 / sound card     (vector 37)
+IRQ_STUB 6    ; IRQ6  Floppy disk           (vector 38)
+IRQ_STUB 7    ; IRQ7  LPT1 / spurious       (vector 39)
+IRQ_STUB 8    ; IRQ8  CMOS real-time clock  (vector 40)
+IRQ_STUB 9    ; IRQ9  Free / ACPI           (vector 41)
+IRQ_STUB 10   ; IRQ10 Free                  (vector 42)
+IRQ_STUB 11   ; IRQ11 Free                  (vector 43)
+IRQ_STUB 12   ; IRQ12 PS/2 mouse            (vector 44)
+IRQ_STUB 13   ; IRQ13 FPU / coprocessor     (vector 45)
+IRQ_STUB 14   ; IRQ14 Primary ATA disk      (vector 46)
+IRQ_STUB 15   ; IRQ15 Secondary ATA / spurious (vector 47)
+
+; =============================================================================
 ; GNU STACK NOTE -- suppress "executable stack" linker warning.
 ; NASM does not emit this section by default, but modern linkers expect it.
 ; =============================================================================

@@ -160,6 +160,20 @@ void vga_putchar(char c)
         return;
     }
 
+    if (c == '\b') {
+        /* Backspace: move the cursor one position to the left and erase the
+         * character there. If already at column 0, move to the end of the
+         * previous row. Used by the shell's readline() function. */
+        if (col > 0) {
+            col--;
+        } else if (row > 0) {
+            row--;
+            col = VGA_WIDTH - 1;
+        }
+        VGA_MEM[row * VGA_WIDTH + col] = make_entry(' ', color);
+        return;
+    }
+
     /* Write the character into the VGA buffer at the current cursor position.
      * The cell index is: row * 80 + col (row-major layout). */
     VGA_MEM[row * VGA_WIDTH + col] = make_entry(c, color);
