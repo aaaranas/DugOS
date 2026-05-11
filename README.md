@@ -400,7 +400,7 @@ sed -i 's/\r//' src/Makefile
 
 - **No standard library.** No `#include <stdio.h>`, `malloc`, `printf`, or POSIX functions in the kernel. Everything goes through `vga_write*` or registers.
 - **C standard:** `gnu99` (see Makefile `CFLAGS`).
-- **Comments:** Only when the WHY is non-obvious — a hardware quirk, a spec constraint, a workaround. Do not comment what the code obviously does.
+- **Comments:** Heavy commenting is **required by the project spec** (Req 6) and counts toward the 70% correctness grade. Every function needs a header block explaining its purpose, parameters, and key behavior. See `src/vga.c` or `src/gdt.c` for the established style.
 - **Naming:** `snake_case` for all C identifiers. Prefix by module (`vga_`, `gdt_`, `idt_`, `isr_`).
 - **Assembly:** NASM Intel syntax only. AT&T syntax (used by GNU `as`) is not used.
 - **One feature per commit.** Don't bundle an unrelated cleanup into a feature commit.
@@ -432,7 +432,7 @@ sed -i 's/\r//' src/Makefile
 | **B.2** | 8259A PIC remap (`intr_init`), IRQ0 timer tick visible on screen | 🔄 Planned |
 | **B.3** | PS/2 keyboard driver, IRQ1 handler, scan-code → ASCII, echo to screen | 🔄 Planned |
 | **B.4** | Line-buffered shell: `help`, `clear`, `shutdown` | 🔄 Planned |
-| **C** | In-memory file system: `fwrite`, `fread`, `fedit`, `fdel` | 🔄 Planned |
+| **C** | FAT file system (linked allocation, 32 KB blocks): `fwrite`, `fread`, `fedit`, `fdel` | 🔄 Planned |
 | **D** | Directory operations: `mkdir`, `cd`, `rmdir`, `ls` | 🔄 Planned |
 | **E** | Aesthetics pass, creativity extras (color themes, ASCII art, echo/whoami/date) | 🔄 Planned |
 
@@ -485,4 +485,4 @@ SECURITY.md       — Security scope disclaimer for this educational OS
 
 ---
 
-*This README was last updated at Phase B.1. Update the feature table and roadmap status as each phase is completed.*
+*This README was last updated at Phase B.1 + comment retrofit (commit `c7a3999`). Update the feature table and roadmap status as each phase is completed.*
