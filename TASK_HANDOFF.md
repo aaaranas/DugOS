@@ -19,6 +19,8 @@
 | **A** | Bootable 32-bit kernel, GRUB 2 multiboot, VGA welcome screen, `hlt` loop | `cc89abb` |
 | **Cleanup** | Fixed UTF-16 `.gitignore`, added `.gitattributes` (LF enforcement), removed committed build artifacts | `7cbe541` |
 | **B.1** | GDT (5 entries), IDT (256 entries), exception handlers for vectors 0–31 | `f7930e3` |
+| **Docs** | Added `README.md` and `TASK_HANDOFF.md` | `820ed68` |
+| **Comment retrofit** | Heavy comments added to all 11 `src/` files (spec Req 6 — part of 70% correctness grade) | `c7a3999` |
 
 ### What the OS does right now
 
@@ -190,13 +192,21 @@ Stack at handler entry (low addr first / ESP+0):
   - `shutdown`: mask all IRQs via PIC, restore BIOS defaults (`intr_init(0)`), then halt
   - Wire `shell_run()` call into `main.c` after all init
 
-- [ ] **C — In-memory file system**
-  - Port `fwrite`, `fread`, `fedit`, `fdel` from `dug_os.c` (lines 354–455)
-  - Use a flat array of file structs in BSS (no dynamic allocation needed for MVP)
-  - Content stored as fixed-size char buffers (e.g., 4096 bytes per file)
-  - No disk I/O required — files live only in RAM, reset on reboot
-  - Implement in `src/fs.h` + `src/fs.c`
-  - Also port: `rename` and `copy` commands
+- [ ] **C — FAT-based in-memory file system** ⚠️ READ THIS BEFORE IMPLEMENTING
+  - **Project spec Req 5 explicitly requires a FAT with linked or indexed allocation.**
+    A flat array of file structs will NOT satisfy this requirement.
+  - **Decisions already made (do not change without team discussion):**
+    - Allocation method: **linked (FAT-style)** — `fat[i]` holds index of next block, or `FAT_END`/`FAT_FREE`
+    - Block size: **32 KB** (32 × 1024 = 32768 bytes per block)
+    - Storage: entirely in BSS (RAM only — files are lost on reboot, which is fine for the course)
+  - **Implementation plan:**
+    - Create `src/fs.h` + `src/fs.c`
+    - `uint16_t fat[N_BLOCKS]` — the File Allocation Table; `FAT_FREE=0x0000`, `FAT_END=0xFFFF`
+    - `uint8_t blocks[N_BLOCKS][BLOCK_SIZE]` — raw data storage in BSS
+    - `struct file_entry { char name[64]; uint16_t first_block; uint32_t size; uint8_t used; }` — flat root directory
+    - Implement: `fs_write`, `fs_read`, `fs_edit` (append), `fs_delete`, `fs_rename`, `fs_copy`
+    - Shell commands map to: `fwrite`, `fread`, `fedit`, `fdel`, `rename`, `copy`
+  - Reference behavioral spec (command names + error messages): `dug_os.c` lines 354–493
 
 - [ ] **D — Directory operations**
   - Port `mkdir`, `cd`, `rmdir`, `ls` from `dug_os.c` (lines 496–557)
@@ -359,7 +369,7 @@ Phase C: in-memory flat file system with 64-file limit
 - **Language standard:** `gnu99` (C99 with GNU extensions)
 - **No standard library** in kernel code. No `#include <stdio.h>` or `malloc`.
 - **Snake_case** for all identifiers. Module-prefixed: `vga_`, `gdt_`, `idt_`, `isr_`, `kbd_`, `fs_`.
-- **Comments:** Only for non-obvious WHY — hardware quirks, spec constraints, layout coupling. Never "this calls X" when the code obviously calls X.
+- **Comments:** **Heavy commenting is required** — project spec Req 6 is part of the 70% correctness grade. Every function must have a header block (purpose, parameters, behavior). Inline comments on all hardware constants and non-obvious logic. See `src/vga.c` or `src/gdt.c` for the established style. All existing `src/` files have been retrofitted (commit `c7a3999`).
 - **Assembly:** NASM Intel syntax only. No AT&T (GNU `as`) syntax.
 - **One slice per commit.** Never bundle an unrelated fix into a feature commit.
 
@@ -467,7 +477,7 @@ The behavioral spec is `dug_os.c`. Every command that exists in the prototype sh
 
 These are open architecture questions that need a team decision before implementation:
 
-1. **In-memory FS structure for Phase C:** Flat array of file structs (simple, ~30 lines) or a proper tree with dynamic nodes (more realistic, needs allocator)? Recommendation: flat array for MVP, tree as Phase E enhancement.
+1. ~~**In-memory FS structure for Phase C:**~~ **RESOLVED.** Use FAT-style linked allocation with 32 KB blocks. See Phase C task above for the full design. Do not reopen this question.
 
 2. **Memory allocator:** Phase C with a flat array needs no allocator. If you go with a tree FS, you need a simple bump allocator (~20 lines). Decision needed before starting C.
 
@@ -528,4 +538,4 @@ These are open architecture questions that need a team decision before implement
 
 ---
 
-*This document covers the state of the repository as of commit `f7930e3` (Phase B.1). Update the status table and pending task checklist as each phase is completed.*
+*This document covers the state of the repository as of commit `c7a3999` (Phase B.1 + comment retrofit). Update the status table and pending task checklist as each phase is completed.*
